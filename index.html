@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI 读城 - 知鸿蒙</title>
+    <style>
+        :root { 
+            --neon-blue: #00d2ff; 
+            --bg-dark: #020617; 
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            background: var(--bg-dark) radial-gradient(circle at 50% -20%, #1e293b, #020617);
+            color: #f8fafc; 
+            font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            padding: 90px 20px; 
+            min-height: 100vh;
+            margin: 0;
+            overflow-x: hidden;
+        }
+
+        /* --- 品牌区 --- */
+        .brand-header {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 12px;
+        }
+
+        .local-logo {
+            height: 38px;
+            width: auto;
+            filter: drop-shadow(0 0 10px rgba(0, 210, 255, 0.4));
+        }
+
+        h1 { font-size: 3rem; font-weight: 900; margin: 0; letter-spacing: -1.5px; }
+        h1 span { color: var(--neon-blue); }
+
+        .slogan {
+            font-size: 1.05rem;
+            color: rgba(255, 255, 255, 0.4);
+            margin-bottom: 45px;
+            letter-spacing: 5px;
+            font-weight: 300;
+            font-style: italic;
+        }
+
+        /* --- 搜索区域及候选框 --- */
+        .search-wrapper { position: relative; width: 580px; z-index: 100; }
+
+        .search-box {
+            width: 100%; 
+            background: rgba(255, 255, 255, 0.05); 
+            border: 1px solid rgba(255, 255, 255, 0.1); 
+            border-radius: 60px; 
+            display: flex; 
+            padding: 6px 6px 6px 28px; 
+            backdrop-filter: blur(15px);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            align-items: center;
+        }
+
+        .search-box:focus-within {
+            border-color: var(--neon-blue);
+            box-shadow: 0 0 20px rgba(0, 210, 255, 0.2);
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        input { 
+            all: unset;
+            flex: 1; 
+            height: 48px;
+            background: transparent !important; 
+            color: white; 
+            font-size: 1.1rem;
+            cursor: text;
+        }
+
+        button { 
+            all: unset;
+            background: var(--neon-blue); 
+            color: #020617; 
+            padding: 0 30px; 
+            height: 48px;
+            border-radius: 50px; 
+            font-weight: 800; 
+            cursor: pointer; 
+            transition: all 0.2s; 
+            font-size: 0.95rem;
+        }
+        button:hover { filter: brightness(1.1); transform: scale(1.03); }
+
+        /* 候选城市弹出面板 */
+        .suggestions-panel {
+            position: absolute;
+            top: 70px;
+            left: 0;
+            right: 0;
+            background: rgba(15, 23, 42, 0.95);
+            border: 1px solid rgba(0, 210, 255, 0.2);
+            border-radius: 20px;
+            padding: 20px;
+            backdrop-filter: blur(20px);
+            display: none; 
+            box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+            animation: slideDown 0.3s ease-out;
+        }
+
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .search-wrapper.active .suggestions-panel { display: block; }
+
+        .suggestions-title {
+            font-size: 0.75rem;
+            color: var(--neon-blue);
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            margin-bottom: 12px;
+            font-weight: bold;
+            opacity: 0.8;
+        }
+
+        .city-grid { 
+            display: grid; 
+            grid-template-columns: repeat(4, 1fr); 
+            gap: 10px; 
+        }
+
+        .city-item {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 0;
+            text-align: center;
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: 0.2s;
+        }
+        .city-item:hover {
+            background: rgba(0, 210, 255, 0.15);
+            border-color: var(--neon-blue);
+            color: var(--neon-blue);
+        }
+
+        /* --- AI 总结区 --- */
+        #aiSummary {
+            display: none;
+            width: 800px; 
+            margin-top: 50px;
+            background: rgba(255, 255, 255, 0.02);
+            border-left: 4px solid var(--neon-blue);
+            padding: 30px 40px; 
+            transition: all 0.5s ease;
+        }
+
+        /* 城市解构标题样式 */
+        .city-deconstruct-header {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 20px;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid rgba(0, 210, 255, 0.2);
+        }
+
+        .deconstruct-line {
+            flex: 1;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, var(--neon-blue), transparent);
+            opacity: 0.5;
+        }
+
+        .deconstruct-title {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .city-name-display {
+            font-size: 2rem;
+            font-weight: 900;
+            color: var(--neon-blue);
+            letter-spacing: 4px;
+            text-shadow: 0 0 20px rgba(0, 210, 255, 0.5);
+            animation: cityNameGlow 2s ease-in-out infinite alternate;
+        }
+
+        @keyframes cityNameGlow {
+            from { text-shadow: 0 0 20px rgba(0, 210, 255, 0.5); }
+            to { text-shadow: 0 0 30px rgba(0, 210, 255, 0.8), 0 0 40px rgba(0, 210, 255, 0.4); }
+        }
+
+        .deconstruct-subtitle {
+            font-size: 0.75rem;
+            color: rgba(255, 255, 255, 0.5);
+            letter-spacing: 8px;
+            text-transform: uppercase;
+            font-weight: 300;
+        }
+
+        #summaryContent { 
+            color: #cbd5e1; 
+            font-size: 1.15rem; 
+            line-height: 2; 
+            white-space: pre-wrap;
+            text-align: justify;
+        }
+
+        /* --- 结果列表 --- */
+        .results-grid { width: 800px; margin-top: 30px; }
+        .card { 
+            background: rgba(30, 41, 59, 0.2); 
+            padding: 25px; 
+            border-radius: 16px; 
+            margin-bottom: 16px; 
+            border: 1px solid rgba(255,255,255,0.03);
+            transition: 0.3s;
+            position: relative;
+        }
+        .card:hover { background: rgba(30, 41, 59, 0.4); transform: translateY(-2px); }
+        .result-index { position: absolute; left: -45px; top: 25px; font-size: 1.2rem; font-weight: 900; color: var(--neon-blue); opacity: 0.3; font-style: italic; }
+        .tag { font-size: 0.65rem; padding: 2px 10px; border-radius: 4px; margin-bottom: 12px; display: inline-block; font-weight: 900; border: 1px solid transparent; }
+        .card a { color: #fff; text-decoration: none; font-weight: bold; font-size: 1.3rem; display: block; margin-bottom: 10px; }
+        .card p { margin: 0; font-size: 1rem; color: #94a3b8; line-height: 1.7; }
+
+        .loading-text { 
+            animation: pulseText 2s infinite ease-in-out; 
+            text-align: center; 
+            color: var(--neon-blue); 
+            margin-top: 50px; 
+            font-weight: bold;
+            font-size: 1.1rem;
+            letter-spacing: 2px;
+        }
+        @keyframes pulseText { 0% { opacity: 0.6; } 50% { opacity: 1; } 100% { opacity: 0.6; } }
+        
+        /* 再次打捞按钮 */
+        .re-search-btn {
+            width: 100%;
+            max-width: 800px;
+            margin: 40px auto 20px;
+            padding: 14px 30px;
+            background: rgba(0, 210, 255, 0.1);
+            border: 1px solid rgba(0, 210, 255, 0.3);
+            border-radius: 50px;
+            color: var(--neon-blue);
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-align: center;
+            display: none;
+        }
+        .re-search-btn:hover {
+            background: rgba(0, 210, 255, 0.2);
+            border-color: var(--neon-blue);
+            transform: translateY(-2px);
+        }
+        
+        /* 底部提示文字 */
+        .results-footer {
+            text-align: center;
+            color: rgba(255, 255, 255, 0.3);
+            font-size: 0.85rem;
+            margin-top: 30px;
+            margin-bottom: 20px;
+            font-style: italic;
+            letter-spacing: 1px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="brand-header">
+        <img src="logo.png" alt="知鸿蒙" class="local-logo" onerror="this.style.display='none'">
+        <h1>AI <span>读城</span></h1>
+    </div>
+    
+    <div class="slogan">拨开时代烟尘，触碰城市最深处的灵魂。</div>
+
+    <div class="search-wrapper" id="searchWrapper">
+        <div class="search-box">
+            <input type="text" id="cityInput" placeholder="请输入想要探索的城市..." autocomplete="off" 
+                   onfocus="showPanel()" onkeydown="if(event.key==='Enter') handleSearch()">
+            <button onclick="handleSearch()">AI 检索</button>
+        </div>
+        
+        <div class="suggestions-panel">
+            <div class="suggestions-title">推荐探索</div>
+            <div class="city-grid">
+                <div class="city-item" onclick="quickSearch('北京')">北京</div>
+                <div class="city-item" onclick="quickSearch('南京')">南京</div>
+                <div class="city-item" onclick="quickSearch('西安')">西安</div>
+                <div class="city-item" onclick="quickSearch('洛阳')">洛阳</div>
+                <div class="city-item" onclick="quickSearch('开封')">开封</div>
+                <div class="city-item" onclick="quickSearch('杭州')">杭州</div>
+                <div class="city-item" onclick="quickSearch('安阳')">安阳</div>
+                <div class="city-item" onclick="quickSearch('郑州')">郑州</div>
+            </div>
+        </div>
+    </div>
+
+    <div id="aiSummary">
+        <div class="city-deconstruct-header">
+            <div class="deconstruct-line"></div>
+            <div class="deconstruct-title">
+                <span class="city-name-display" id="cityNameDisplay"></span>
+                <span class="deconstruct-subtitle">城市解构</span>
+            </div>
+            <div class="deconstruct-line"></div>
+        </div>
+        <div id="summaryContent"></div>
+    </div>
+
+    <div id="resultsGrid" class="results-grid"></div>
+    
+    <button id="reSearchBtn" class="re-search-btn" onclick="handleReSearch()" style="display: none;">再次打捞</button>
+    
+    <div id="resultsFooter" class="results-footer" style="display: none;">
+        已从 25 个维度为你解构，更多灵魂碎片隐藏在烟尘之后。
+    </div>
+
+    <script>
+        const wrapper = document.getElementById('searchWrapper');
+        const input = document.getElementById('cityInput');
+
+        // 后端健康检查
+        async function checkBackendHealth() {
+            try {
+                const response = await fetch('/api/health', {
+                    method: 'GET',
+                    headers: {'Content-Type': 'application/json'}
+                });
+                
+                const data = await response.json();
+                console.log('后端健康检查:', data);
+                
+                if (data.status === 'ok' && data.message) {
+                    console.log('✓ 后端服务运行正常:', data.message);
+                    return true;
+                }
+                return false;
+            } catch (err) {
+                console.warn('后端健康检查失败:', err.message);
+                return false;
+            }
+        }
+
+        // 页面加载时检查后端状态
+        window.addEventListener('DOMContentLoaded', async () => {
+            const isHealthy = await checkBackendHealth();
+            if (!isHealthy) {
+                console.warn('后端服务可能未启动，请确保后端服务正在运行');
+            }
+        });
+
+        function showPanel() { wrapper.classList.add('active'); }
+
+        document.addEventListener('click', (e) => {
+            if (!wrapper.contains(e.target)) {
+                wrapper.classList.remove('active');
+            }
+        });
+
+        function quickSearch(name) {
+            input.value = name;
+            wrapper.classList.remove('active');
+            handleSearch();
+        }
+
+        function getSourceStyle(source) {
+            const s = (source || "").toLowerCase();
+            console.log('来源标签:', source, '处理后:', s); // 调试用
+            
+            // 25+ 个来源的完整颜色映射（覆盖所有来源）
+            const sourceColorMap = {
+                // 社交媒体类
+                '知乎': { color: '#0084ff', border: 'rgba(0, 132, 255, 0.4)', bg: 'rgba(0, 132, 255, 0.15)' },
+                '豆瓣': { color: '#2e8b57', border: 'rgba(46, 139, 87, 0.4)', bg: 'rgba(46, 139, 87, 0.15)' },
+                '小红书': { color: '#ff2442', border: 'rgba(255, 36, 66, 0.4)', bg: 'rgba(255, 36, 66, 0.15)' },
+                '微博': { color: '#ff9933', border: 'rgba(255, 153, 51, 0.4)', bg: 'rgba(255, 153, 51, 0.15)' },
+                '公众号': { color: '#07c160', border: 'rgba(7, 193, 96, 0.4)', bg: 'rgba(7, 193, 96, 0.15)' },
+                '贴吧': { color: '#4a90e2', border: 'rgba(74, 144, 226, 0.4)', bg: 'rgba(74, 144, 226, 0.15)' },
+                
+                // 视频/音频类
+                '抖音': { color: '#00d2ff', border: 'rgba(0, 210, 255, 0.4)', bg: 'rgba(0, 210, 255, 0.15)' },
+                '快手': { color: '#ff6600', border: 'rgba(255, 102, 0, 0.4)', bg: 'rgba(255, 102, 0, 0.15)' },
+                'b站': { color: '#fb7299', border: 'rgba(251, 114, 153, 0.4)', bg: 'rgba(251, 114, 153, 0.15)' },
+                '音乐': { color: '#9b59b6', border: 'rgba(155, 89, 182, 0.4)', bg: 'rgba(155, 89, 182, 0.15)' },
+                '播客': { color: '#e74c3c', border: 'rgba(231, 76, 60, 0.4)', bg: 'rgba(231, 76, 60, 0.15)' },
+                
+                // 生活服务类
+                '点评': { color: '#ff6600', border: 'rgba(255, 102, 0, 0.4)', bg: 'rgba(255, 102, 0, 0.15)' },
+                '美团': { color: '#ffc107', border: 'rgba(255, 193, 7, 0.4)', bg: 'rgba(255, 193, 7, 0.15)' },
+                '旅行': { color: '#3498db', border: 'rgba(52, 152, 219, 0.4)', bg: 'rgba(52, 152, 219, 0.15)' },
+                
+                // 权威/学术类
+                '网页': { color: '#95a5a6', border: 'rgba(149, 165, 166, 0.4)', bg: 'rgba(149, 165, 166, 0.15)' },
+                '本地': { color: '#34495e', border: 'rgba(52, 73, 94, 0.4)', bg: 'rgba(52, 73, 94, 0.15)' },
+                '地方志': { color: '#ffd700', border: 'rgba(255, 215, 0, 0.4)', bg: 'rgba(255, 215, 0, 0.15)' },
+                '地图': { color: '#16a085', border: 'rgba(22, 160, 133, 0.4)', bg: 'rgba(22, 160, 133, 0.15)' },
+                '学术': { color: '#8e44ad', border: 'rgba(142, 68, 173, 0.4)', bg: 'rgba(142, 68, 173, 0.15)' },
+                '国家地理': { color: '#27ae60', border: 'rgba(39, 174, 96, 0.4)', bg: 'rgba(39, 174, 96, 0.15)' },
+                '博物馆': { color: '#c0392b', border: 'rgba(192, 57, 43, 0.4)', bg: 'rgba(192, 57, 43, 0.15)' },
+                
+                // 媒体资讯类
+                '新闻': { color: '#2ecc71', border: 'rgba(46, 204, 113, 0.4)', bg: 'rgba(46, 204, 113, 0.15)' },
+                '资讯': { color: '#3498db', border: 'rgba(52, 152, 219, 0.4)', bg: 'rgba(52, 152, 219, 0.15)' },
+                '澎湃': { color: '#e67e22', border: 'rgba(230, 126, 34, 0.4)', bg: 'rgba(230, 126, 34, 0.15)' },
+                
+                // 文化艺术类
+                '艺术': { color: '#e91e63', border: 'rgba(233, 30, 99, 0.4)', bg: 'rgba(233, 30, 99, 0.15)' }
+            };
+            
+            // 精确匹配
+            if (sourceColorMap[source]) {
+                return sourceColorMap[source];
+            }
+            
+            // 模糊匹配（兼容大小写和部分匹配）
+            for (const [key, value] of Object.entries(sourceColorMap)) {
+                if (s.includes(key.toLowerCase()) || s === key.toLowerCase()) {
+                    return value;
+                }
+            }
+            
+            // 默认颜色 - 橙色（让未识别的来源也明显）
+            return { 
+                color: '#f59e0b', 
+                border: 'rgba(245, 158, 11, 0.4)', 
+                bg: 'rgba(245, 158, 11, 0.15)' 
+            };
+        }
+
+        function runTypeWriter(text) {
+            const box = document.getElementById('aiSummary');
+            const displayArea = document.getElementById('summaryContent');
+            // 确保标题区域可见
+            box.style.display = 'block';
+            displayArea.innerText = ""; 
+            let i = 0;
+            function type() {
+                if (i < text.length) {
+                    displayArea.innerText += text.charAt(i);
+                    i++;
+                    setTimeout(type, 15);
+                }
+            }
+            type();
+        }
+
+        async function handleSearch() {
+            const city = input.value.trim();
+            if (!city) return;
+
+            wrapper.classList.remove('active');
+            const grid = document.getElementById('resultsGrid');
+            const summaryBox = document.getElementById('aiSummary');
+            
+            summaryBox.style.display = 'none';
+            // 随机加载文字
+            const loadingTexts = [
+                '正在拨开时代烟尘...',
+                '正在打捞城市灵魂...',
+                '正在触碰城市最深处的记忆...',
+                '正在梳理城市的呼吸与脉搏...'
+            ];
+            const randomLoadingText = loadingTexts[Math.floor(Math.random() * loadingTexts.length)];
+            grid.innerHTML = `<p class="loading-text">${randomLoadingText}</p>`;
+            
+            // 隐藏再次打捞按钮和底部提示
+            document.getElementById('reSearchBtn').style.display = 'none';
+            document.getElementById('resultsFooter').style.display = 'none';
+
+            try {
+                const response = await fetch('/api/search', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ city })
+                });
+                
+                // 调试：打印响应状态
+                console.log('响应状态码:', response.status);
+                console.log('响应是否成功:', response.ok);
+                console.log('响应 Content-Type:', response.headers.get('content-type'));
+                
+                // 先获取响应文本，看看实际返回了什么
+                const responseText = await response.text();
+                console.log('后端返回的原始文本:', responseText);
+                
+                let data;
+                try {
+                    data = JSON.parse(responseText);
+                } catch (e) {
+                    console.error('JSON 解析失败:', e);
+                    grid.innerHTML = `<p style="text-align:center; color:#ff4444; margin-top:50px;">响应格式错误: ${responseText.substring(0, 100)}</p>`;
+                    return;
+                }
+                
+                // 调试：在控制台打印返回的数据
+                console.log('后端返回的数据:', data);
+                console.log('data 的所有键:', Object.keys(data));
+                
+                // 兼容 answer 和 summary 两种字段名（后端可能返回 answer 或 summary）
+                const summaryText = data.summary || data.answer || '';
+                console.log('summary 字段:', summaryText);
+                console.log('summary 类型:', typeof summaryText);
+                console.log('summary 是否为空:', !summaryText);
+                
+                if (!response.ok) {
+                    grid.innerHTML = `<p style="text-align:center; color:#ff4444; margin-top:50px;">${data.error || data.message || '请求失败'}</p>`;
+                    // 即使出错，也尝试显示 summary（如果有的话）
+                    if (summaryText) {
+                        summaryBox.style.display = 'block';
+                        document.getElementById('summaryContent').innerText = summaryText;
+                    }
+                    return;
+                }
+
+                // 显示 AI 总结（强制显示，即使为空）
+                console.log('准备显示总结，summaryText:', summaryText);
+                console.log('summaryText 长度:', summaryText ? summaryText.length : 0);
+                console.log('summaryBox 元素:', summaryBox);
+                
+                // 更新城市名称显示
+                const cityNameDisplay = document.getElementById('cityNameDisplay');
+                if (cityNameDisplay) {
+                    cityNameDisplay.textContent = city;
+                }
+                
+                if (summaryText && summaryText.trim()) {
+                    // 如果 summary 有内容，用打字机效果
+                    console.log('调用 runTypeWriter，内容:', summaryText.substring(0, 50));
+                    // 先显示标题区域
+                    summaryBox.style.display = 'block';
+                    runTypeWriter(summaryText);
+                } else {
+                    // 如果 summary 是空字符串，也显示提示
+                    console.log('summary 为空，显示默认提示');
+                    summaryBox.style.display = 'block';
+                    document.getElementById('summaryContent').innerText = '城市档案正在整理中，请查看下方搜索结果...';
+                }
+
+                grid.innerHTML = "";
+                if (data.results && data.results.length > 0) {
+                    // 限制显示 6-7 个结果
+                    const displayResults = data.results.slice(0, 6); // 固定显示 6 个结果
+                    displayResults.forEach((item, index) => {
+                        const card = document.createElement('div');
+                        card.className = 'card';
+                        const style = getSourceStyle(item.source);
+                        card.innerHTML = `
+                            <div class="result-index">${String(index + 1).padStart(2, '0')}</div>
+                            <span class="tag" style="color: ${style.color}; border-color: ${style.border}; background: ${style.bg}">
+                                ${(item.source || 'ARCHIVE').toUpperCase()}
+                            </span>
+                            <a href="${item.link || '#'}" target="_blank">${item.title || '无标题结果'}</a>
+                            <p>${item.snippet || '暂无检索详情。'}</p>
+                        `;
+                        grid.appendChild(card);
+                    });
+                    
+                    // 显示再次打捞按钮和底部提示
+                    if (displayResults.length >= 6) {
+                        document.getElementById('reSearchBtn').style.display = 'block';
+                        document.getElementById('resultsFooter').style.display = 'block';
+                    }
+                } else {
+                    grid.innerHTML = '<p style="text-align:center; margin-top:50px; opacity:0.5;">未查询到该城市的相关深度数据。</p>';
+                }
+            } catch (err) {
+                grid.innerHTML = '<p style="text-align:center; color:#ff4444; margin-top:50px;">检索服务暂时不可用。</p>';
+            }
+        }
+        
+        // 再次打捞功能
+        function handleReSearch() {
+            const city = input.value.trim();
+            if (!city) return;
+            
+            // 重新搜索，后端会返回不同的结果（因为搜索结果的顺序可能不同）
+            handleSearch();
+        }
+    </script>
+</body>
+</html>
